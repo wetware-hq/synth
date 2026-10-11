@@ -1,139 +1,149 @@
-# Integration contract
+# synth card
 
-Instructions for hosts and automation that call the `synth` library or `synth` CLI. synth does **not** issue release decisions; bloc does.
+```
+ROLE: codon-opt CDS for synthesis; NOT release authority (bloc owns RELEASE|HOLD|ESCALATE)
+PIPE: SeekFrame(phase=filled,kind=DNA) → synth → SeekFrame + optional DesignSpec → bloc screen → BlocVerdict → enforce_synthesis_gate?
+```
 
-## Tool purpose
+## invoke_when
 
-- Replace codons with host-preferred synonyms (NCBI code table 1; translation preserved).
-- Avoid forbidden DNA substrings (default Type IIS motifs).
-- Best-effort GC adjustment toward `[gc_min, gc_max]` (default 0.30–0.70); may return a sequence still outside the band.
-- Emit an optimised Seek frame and optionally a bloc `design_spec` for `bloc screen`.
-- Optionally enforce that a supplied bloc verdict is `RELEASE` before treating synthesis as allowed.
+```
+DNA SeekFrame.phase == filled
+seq.nonempty && len(normalise(seq)) % 3 == 0
+need host-tuned codons OR Type IIS motif avoidance OR GC band nudge
+bloc handoff needed → Seek path (not FASTA-only)
+```
 
-## When to use
+## do_not_invoke_when
 
-- Input is a **DNA** Seek frame with `phase: filled` and non-empty `seq` (length multiple of 3).
-- Synthesis-friendly codons are required for a known host (`e_coli_k12`, `yeast`, `human`, etc.).
-- Seek fill is complete; bloc screening is the next or parallel step.
+```
+kind ∈ {RNA, AA, XNA}  → seek.filler / Seek tools first
+phase != filled || seq empty
+need safety verdict → run bloc screen; never infer from synth_optimised feature
+de novo AA design → unsupported
+```
 
-## When not to use
+## input
 
-- `kind` is `RNA`, `AA`, or `XNA` → use Seek tools first (e.g. `seek.filler` for AA→DNA).
-- `phase` is not `filled` or `seq` is empty → fill sequence first.
-- A safety or release decision is required → run `bloc screen`; do not infer clearance from synth output.
-- De novo amino-acid sequence design → not supported.
+```
+SeekFrame JSON (deny_unknown_fields root):
+  id, kind: DNA|RNA|AA|XNA, topo: linear|circular, seq, features[], want[], forbid[], phase: spec|filled|kill|tube
+CLI JSON detect: ext .json|.seek OR body starts with '{'
+FASTA: >id lines; CLI only; no --design-spec on FASTA path
 
-## Input shapes
+host string → resolve_host (codons), resolve_bloc_chassis (DesignSpec.chassis)
+  e_coli_k12|ecoli|e_coli → e_coli / e_coli_k12
+  e_coli_b → e_coli / e_coli_b
+  yeast|s_cerevisiae → s_cerevisiae / yeast
+  cell_free → e_coli / cell_free
+  other_bsl1 → e_coli / other_bsl1
+  none → e_coli / none
+  human|h_sapiens → h_sapiens / other
+  other → other / other
+  else → lowercased host key (unknown → E. coli table) / other
 
-### Seek frame (required fields only)
+OptimizeOptions:
+  host: String (resolved codon key)
+  avoid: Vec<String> default GGTCTC,GAGACC,CGTCTC,GAGACG
+  gc_min: f64 default 0.3
+  gc_max: f64 default 0.7
+```
 
-```json
-{
-  "id": "string",
-  "kind": "DNA" | "RNA" | "AA" | "XNA",
-  "topo": "linear" | "circular",
-  "seq": "string",
-  "features": [],
-  "want": [],
-  "forbid": [],
-  "phase": "spec" | "filled" | "kill" | "tube"
+## algorithm
+
+```
+normalise: strip ws; upper; U→T
+per-codon: synonymous_codons(aa,host) preferred-first; pick first where prefix+ codon ∉ avoid substrings
+  fail → OptimizeError::PatternConflict(offset)
+  bad codon → OptimizeError::UnknownCodon(offset)
+  len%3!=0 → OptimizeError::BadLength
+GC: if gc∉[gc_min,gc_max] single pass codon swaps toward band; else return step-1 seq (may stay out of band)
+translation preserved (table 1)
+```
+
+## output
+
+```
+SeekFrame: seq replaced; phase filled; features += {
+  type: "synth_optimised",
+  host: <display_host>,
+  species: <OptimizeOptions.host>,
+  gc: <float>
 }
+to_seek_frame_json → pretty JSON +\n
+
+DesignSpec (spec_version "0.1.0"):
+  construct_id = frame.id
+  fragments: each features[].type==CDS (slice start..end 1-based) OR one cds/dna full seq
+CLI --design-spec defaults:
+  designer.agent=synth designer.human=wetware
+  intended_function=reporter intended_bsl=BSL-1 not_for_synthesis=true
+  chassis=resolve_bloc_chassis(--host)
+
+FASTA: ids → {id}_opt; format_fasta
 ```
 
-**Preconditions for optimisation:** `kind == DNA`, `phase == filled`, `seq` non-empty, `len(seq) % 3 == 0` after normalisation. Unknown root keys → parse error.
-
-### FASTA
-
-`>id` header lines and sequence lines. No frame schema. The CLI does not emit `design_spec` from FASTA input.
-
-### Host string
-
-Pass to `--host` or `OptimizeRequest.display_host`. Codon tables use `resolve_host` (e.g. `e_coli_k12` → `e_coli`, `yeast` → `s_cerevisiae`, `human` → `h_sapiens`). bloc `chassis` in emitted spec uses `resolve_bloc_chassis` (`human` → `other`).
-
-### Optimise options
-
-- `avoid`: list of forbidden substrings; default `GGTCTC`, `GAGACC`, `CGTCTC`, `GAGACG`.
-- `gc_min` / `gc_max`: default `0.3` / `0.7`.
-
-## Output shapes
-
-### Optimised Seek frame
-
-Same fields as input. Changes:
-
-- `seq`: optimised DNA.
-- `phase`: `filled`.
-- `features`: prior entries plus one object:
-
-```json
-{
-  "type": "synth_optimised",
-  "host": "<display_host>",
-  "species": "<resolve_host key>",
-  "gc": <float>
-}
-```
-
-### bloc design_spec (`spec_version` `0.1.0`)
-
-Produce via `optimize_and_handoff` or `--design-spec`. Required root fields per bloc schema: `construct_id`, `designer`, `chassis`, `intended_function`, `intended_bsl`, `not_for_synthesis`, `fragments[]`. CLI defaults include `not_for_synthesis: true` — override in library via `DesignSpecOptions` when appropriate.
-
-### bloc verdict (input to gate, not produced by synth)
-
-```json
-{
-  "policy": "RELEASE" | "HOLD" | "ESCALATE",
-  "construct_id": "...",
-  ...
-}
-```
-
-## API calls (library)
-
-1. `parse_seek_frame(json)` → `SeekFrame`
-2. `validate_frame_for_optimisation(&frame)` → `Ok` or `FrameError`
-3. `optimize_seek_frame(frame, display_host, &OptimizeOptions)` → optimised frame
-4. `optimize_and_handoff(frame, &OptimizeRequest)` → `SynthHandoff { frame_result, design_spec }`
-5. After `bloc screen`: `parse_bloc_verdict(json)` then `enforce_synthesis_gate(&verdict)` → `Ok` only if `RELEASE`
-
-FASTA: `parse_fasta` → `optimize_fasta_records` → `format_fasta`.
-
-## Failure modes
-
-| Error | Meaning | Remediation |
-|-------|---------|-------------|
-| `FrameError::NotDna` | Wrong `kind` | Run AA→DNA fill; retry with DNA frame |
-| `FrameError::WrongPhase` | Not `filled` | Complete Seek fill; set `phase: filled` |
-| `FrameError::EmptySequence` | No sequence | Fill `seq` first |
-| `OptimizeError::BadLength` | Length not multiple of 3 | Fix sequence length |
-| `OptimizeError::UnknownCodon` | Invalid codon | Fix input sequence |
-| `OptimizeError::PatternConflict` | Motifs block all synonyms at a site | Relax `--avoid` or change constraints |
-| `serde_json::Error` | Invalid JSON | Fix file |
-| `SynthesisGateError` | Verdict not `RELEASE` | Stop synthesis path; follow bloc card |
-| CLI exit `2` | Frame validation/optimise failed | Read stderr message |
-| CLI exit `10` / `20` | HOLD / ESCALATE verdict | Do not order synthesis |
-
-## Pipeline rules
-
-1. Use a Seek frame when bloc handoff is required; FASTA is for sequence-only interchange.
-2. After synth, run `bloc screen` on `design_spec` before any synthesis or ordering step.
-3. Call `enforce_synthesis_gate` (or `synth --verdict`) when a verdict file exists; do not proceed on `HOLD` or `ESCALATE`.
-4. Do not treat `synth_optimised` feature or optimised `seq` as a safety clearance.
-
-## Do not assume
-
-- GC is always inside 0.30–0.70 after optimisation (best-effort only).
-- `not_for_synthesis: true` in default CLI spec means the plan is cleared for ordering (it does not).
-- synth runs bloc or returns a verdict.
-- `human` maps to a bloc chassis enum value (it maps to `other`).
-- FASTA output is sufficient for bloc without building a `design_spec`.
-- Pattern avoidance removes all restriction sites beyond the configured substrings.
-
-## CLI reference
+## library API (order)
 
 ```
-synth <input> [-o PATH] [--host HOST] [--avoid PAT]... [--gc-min N] [--gc-max N]
-              [--design-spec PATH] [--verdict PATH] [--designer-human S] [--designer-agent S]
+parse_seek_frame(str) → SeekFrame | serde_json::Error
+validate_frame_for_optimisation(&SeekFrame) → Result<(), FrameError>
+optimize_seek_frame(SeekFrame, display_host: &str, &OptimizeOptions) → FrameOptimizeResult | FrameError
+optimize_and_handoff(SeekFrame, &OptimizeRequest) → SynthHandoff | PipelineError
+  OptimizeRequest { display_host, optimize: OptimizeOptions, design_spec: DesignSpecOptions }
+parse_fasta → optimize_fasta_records → format_fasta
+design_spec_from_seek_frame / to_design_spec_json
+parse_bloc_verdict → enforce_synthesis_gate / gate_synthesis
+helpers: optimize_cds, gc_content, translate_codon, preferred_codon, synonymous_codons, default_avoid_patterns
+crate feature cli (default): binary synth; default-features=false → lib only
 ```
 
-Exit codes: `0` success; `1` I/O/parse/FASTA errors; `2` frame optimise; `10` HOLD verdict; `20` ESCALATE verdict.
+## errors
+
+```
+OptimizeError::BadLength | UnknownCodon(usize) | PatternConflict(usize)
+FrameError::NotDna(FrameKind) | WrongPhase(FramePhase) | EmptySequence | Optimize(...)
+DesignSpecError::NotDna | EmptySequence | NoFragments
+SynthesisGateError { policy: BlocPolicy, construct_id }  // HOLD|ESCALATE only
+serde_json::Error on parse
+```
+
+## CLI
+
+```
+synth <input> [-o PATH] [--host HOST] [--avoid PAT]... [--gc-min F] [--gc-max F]
+  [--design-spec PATH] [--verdict PATH] [--designer-human S] [--designer-agent S]
+defaults: host=e_coli_k12 gc_min=0.3 gc_max=0.7 designer_human=wetware designer_agent=synth
+output default: <stem>_opt.json | <stem>_opt.fasta
+```
+
+## exit_codes
+
+```
+0  ok
+1  io | seek json parse | empty fasta | fasta optimise | verdict read/parse
+2  frame validate | frame optimise (stderr has FrameError|PipelineError)
+10 --verdict & BlocPolicy::Hold     (matches bloc; SynthesisGateError.exit_code)
+20 --verdict & BlocPolicy::Escalate
+enforce_synthesis_gate: Ok only BlocPolicy::Release
+```
+
+## pipeline_rules
+
+```
+1 SeekFrame required for DesignSpec handoff
+2 after synth → bloc screen on DesignSpec before synthesis/order
+3 if BlocVerdict file exists → enforce_synthesis_gate before proceed; HOLD/ESCALATE → stop
+4 synth_optimised + optimised seq ≠ safety clearance
+```
+
+## do_not_assume
+
+```
+GC always ∈ [0.30,0.70] after opt (best-effort single pass)
+CLI not_for_synthesis=true ⇒ cleared for ordering (false)
+synth runs bloc or emits BlocVerdict
+human → bloc chassis enum (maps Other)
+FASTA alone satisfies bloc path
+avoid list removes all restriction sites globally
+```

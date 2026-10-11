@@ -2,32 +2,12 @@
 
 synth - a design room for synthetic DNA: optimizes a coding sequence for the selected host, removes unwanted restriction digestion sites, holds GC in thermodynamically favorable range.
 
-## Clinical summary
+synth is a program that prepares a DNA coding sequence for gene synthesis or related work. It substitutes synonymous codons that are frequent in a selected host organism while preserving the encoded protein under NCBI genetic code table 1. It excludes configured DNA substrings that correspond to Type IIS restriction sites used in assembly. It applies a best-effort adjustment so the GC fraction may move toward a configured band; the default band is 0.30 to 0.70 on a 0.0–1.0 scale (`gc_min` and `gc_max`, defaulting to `0.3` and `0.7`). The adjustment is a single forward pass over codons; if no pass satisfies the band without violating substring rules, the program still returns the codon-optimised sequence and that sequence may remain outside the band. The primary input is a filled Seek frame: a JSON object with root fields `id`, `kind`, `topo`, `seq`, `features`, `want`, `forbid`, and `phase`, with unknown root keys rejected at parse (`parse_seek_frame`, `SeekFrame`). Codon optimisation requires `kind` DNA, `phase` filled, non-empty `seq`, and length of `seq` divisible by three after normalisation (whitespace removed, letters uppercased, `U` mapped to `T`). Kinds RNA, AA, and XNA are valid in Seek but yield `FrameError::NotDna` if optimisation is requested. The CLI treats input as a Seek frame when the path ends in `.json` or `.seek` or when the file body begins with `{`; otherwise it reads FASTA as a secondary, convenience format with no `design_spec` emission on that path.
 
-synth is a computer program that adjusts a DNA coding sequence before gene synthesis or related laboratory work. The program replaces codons with alternatives that are common in a chosen host organism while keeping the same protein sequence. It also tries to remove short DNA motifs associated with Type IIS restriction enzymes used in DNA assembly, and it tries to keep the fraction of G and C bases within a set range. The preferred input is a filled Seek frame, which is a structured JSON record used in the Wetware design tools. The program can also read a simple FASTA file when a frame is not available. The main output is an updated Seek frame with the same structure as the input and an annotation that optimisation occurred. The program can also write a bloc design specification file that downstream screening software expects. synth does not decide whether a design is safe to build. Another program called bloc performs that review and returns a verdict of RELEASE, HOLD, or ESCALATE. synth can check an existing bloc verdict and refuse to treat a design as cleared for synthesis when the verdict is not RELEASE. synth does not run laboratory steps, does not screen for sequences of concern, and does not create DNA from an amino-acid sequence alone. Amino-acid sequences must be converted to DNA elsewhere before synth is used.
+The host argument (`--host`, default `e_coli_k12`, or `OptimizeRequest.display_host` in the library) selects the codon preference table via `resolve_host` and is recorded on the appended `synth_optimised` feature. The same string maps to bloc `chassis` in an emitted design specification through `resolve_bloc_chassis` as follows.
 
-## Technical specification
-
-### Pipeline position
-
-```text
-seek frame (phase: filled)  →  synth  →  optimised seek frame
-                                          ↓
-                                bloc design_spec  →  bloc screen  →  RELEASE | HOLD | ESCALATE
-```
-
-Integration contract for hosts and automation: [`AGENTS.md`](AGENTS.md). Schemas: [Seek frame](https://github.com/wetware-hq/seek/blob/main/schema/frame.schema.json), [bloc design_spec](https://github.com/wetware-hq/bloc/blob/main/schemas/design_spec.schema.json), [bloc verdict](https://github.com/wetware-hq/bloc/blob/main/schemas/verdict.schema.json), [optimise request](schema/optimize_request.schema.json).
-
-### Input contracts
-
-**Seek frame (primary).** JSON object with exactly these root fields (unknown keys rejected at parse): `id`, `kind`, `topo`, `seq`, `features`, `want`, `forbid`, `phase`. Optimisation requires `kind: DNA`, `phase: filled`, and non-empty `seq`. Length of `seq` must be a multiple of three after normalisation. Kinds `RNA`, `AA`, and `XNA` are valid Seek kinds but are rejected for codon optimisation. Detection: file extension `.json` or `.seek`, or body starts with `{`.
-
-**FASTA (secondary).** One or more records; convenience only. No bloc handoff from FASTA. Detection: any non-JSON input path.
-
-**Host string (`--host` / `display_host`).** Selects codon preference table and is stored on the `synth_optimised` feature. Mapped to internal codon keys via `resolve_host` and to bloc `chassis` via `resolve_bloc_chassis` when emitting `design_spec`.
-
-| Host input | `resolve_host` (codons) | `resolve_bloc_chassis` |
-|------------|-------------------------|-------------------------|
+| Host input | `resolve_host` | `resolve_bloc_chassis` |
+|------------|----------------|-------------------------|
 | `e_coli_k12`, `ecoli`, `e_coli` | `e_coli` | `e_coli_k12` |
 | `e_coli_b` | `e_coli` | `e_coli_b` |
 | `yeast`, `s_cerevisiae` | `s_cerevisiae` | `yeast` |
@@ -36,106 +16,33 @@ Integration contract for hosts and automation: [`AGENTS.md`](AGENTS.md). Schemas
 | `none` | `e_coli` | `none` |
 | `human`, `h_sapiens` | `h_sapiens` | `other` |
 | `other` | `other` | `other` |
-| (any other string) | lowercased; unknown keys use E. coli codon table as fallback | `other` |
+| any other string | lowercased; unknown keys fall back to the E. coli codon table in `codon.rs` | `other` |
 
-### Output contracts
+Unless overridden by repeated `--avoid` or `OptimizeOptions.avoid`, forbidden substrings are `GGTCTC`, `GAGACC`, `CGTCTC`, and `GAGACG` (`default_avoid_patterns`), matched as substrings anywhere in the growing sequence during codon choice.
 
-**Optimised Seek frame.** Same schema as input. `seq` replaced; `phase` remains `filled`. A feature object is appended: `type: synth_optimised`, `host` (display host), `species` (resolved codon key), `gc` (fraction after optimisation). Serialisation: `to_seek_frame_json` (pretty JSON + trailing newline).
+The main output for frame input is an optimised Seek frame of the same shape: `seq` replaced, `phase` remaining `filled`, and one added feature object with `type` `synth_optimised`, fields `host` (display host), `species` (resolved codon key), and `gc` (post-optimisation fraction). Serialisation uses `to_seek_frame_json` (pretty JSON with trailing newline). The library entry points `validate_frame_for_optimisation`, `optimize_seek_frame`, and the combined path `optimize_and_handoff` (with `OptimizeRequest`, returning `SynthHandoff`) implement this behaviour. Optional bloc handoff produces `DesignSpec` at `spec_version` `"0.1.0"` via `design_spec_from_seek_frame` or `optimize_and_handoff`; `construct_id` equals frame `id`; fragments derive from each feature with `type` CDS (sequence slice from 1-based `start`/`end` when present) or, if none exist, a single `cds` fragment with alphabet `dna` over the full `seq`. CLI emission of `design_spec` (`--design-spec`) sets `designer.agent` to `synth`, `designer.human` to `wetware`, `intended_function` to `reporter`, `intended_bsl` to `BSL-1`, and `not_for_synthesis` to `true`, with `chassis` from `resolve_bloc_chassis(--host)`. FASTA output keeps the same format; each record id gains the suffix `_opt` (`parse_fasta`, `optimize_fasta_records`, `format_fasta`).
 
-**bloc design_spec (optional).** `spec_version: "0.1.0"`. Built by `design_spec_from_seek_frame` / `optimize_and_handoff`. `construct_id` = frame `id`. Fragments: one entry per `CDS` feature (sequence slice from `start`/`end` if present), or a single `cds` / `dna` fragment covering full `seq` if no CDS features. CLI defaults: `designer.agent: synth`, `designer.human: wetware`, `intended_function: reporter`, `intended_bsl: BSL-1`, `not_for_synthesis: true`, `chassis` from `resolve_bloc_chassis(--host)`.
+In the Wetware pipeline, a filled Seek frame passes through synth to an optimised frame; downstream, a bloc design specification is screened by `bloc screen`, which yields a policy of RELEASE, HOLD, or ESCALATE. synth does not run `bloc screen` and does not assign release policy. It can parse an existing verdict (`parse_bloc_verdict`, `BlocVerdict`) and block treatment of synthesis as allowed unless policy is RELEASE (`enforce_synthesis_gate`, `SynthesisGateError`; CLI `--verdict` after successful frame output, exiting with bloc-aligned codes for HOLD and ESCALATE). synth does not perform laboratory work, does not screen sequences of concern, and does not translate amino-acid designs to DNA; that step belongs to Seek tooling such as `seek.filler`. Normative detail for automated hosts appears in [`AGENTS.md`](AGENTS.md). JSON schemas are linked from [Seek frame](https://github.com/wetware-hq/seek/blob/main/schema/frame.schema.json), [bloc design_spec](https://github.com/wetware-hq/bloc/blob/main/schemas/design_spec.schema.json), [bloc verdict](https://github.com/wetware-hq/bloc/blob/main/schemas/verdict.schema.json), and [optimise request](schema/optimize_request.schema.json).
 
-**FASTA.** Same format as input; record ids gain suffix `_opt`.
+The public Rust API re-exports, among others: Seek types and I/O (`SeekFrame`, `FrameKind`, `FramePhase`, `FrameTopo`, `parse_seek_frame`, `to_seek_frame_json`); frame validation and optimisation (`validate_frame_for_optimisation`, `optimize_seek_frame`, `FrameError`); core CDS logic (`optimize_cds`, `OptimizeOptions`, `OptimizeError`, `gc_content`); host helpers (`resolve_host`, `resolve_bloc_chassis`, `default_avoid_patterns`); pipeline (`OptimizeRequest`, `optimize_and_handoff`, `SynthHandoff`, `PipelineError`); bloc types and I/O (`DesignSpec`, `DesignSpecOptions`, `design_spec_from_seek_frame`, `to_design_spec_json`, `DesignSpecError`); verdict gate (`BlocVerdict`, `BlocPolicy`, `parse_bloc_verdict`, `enforce_synthesis_gate`, `gate_synthesis`); and genetic-code helpers (`translate_codon`, `preferred_codon`, `synonymous_codons`). The crate feature `cli` (default on) builds the `synth` binary; `default-features = false` omits `clap`.
 
-### Optimisation algorithm
+Library errors include `OptimizeError::BadLength` (length not divisible by three), `OptimizeError::UnknownCodon` (offset into `seq`), `OptimizeError::PatternConflict` (no legal synonymous codon at a position), `FrameError::NotDna`, `FrameError::WrongPhase`, `FrameError::EmptySequence`, `DesignSpecError`, and `SynthesisGateError` when policy is HOLD or ESCALATE. The CLI exits `0` on success; `1` on I/O failure, JSON parse failure, empty FASTA, FASTA optimisation failure, or verdict read/parse failure; `2` on Seek frame validation or optimisation failure; `10` when `--verdict` is set and policy is HOLD; `20` when `--verdict` is set and policy is ESCALATE. `SynthesisGateError::exit_code()` returns `10` or `20` to match.
 
-1. **Normalisation.** Remove whitespace; uppercase; `U` → `T`.
-2. **Codon pass.** For each codon, choose the most frequent synonymous codon for the host (NCBI genetic code table 1). If the growing sequence would contain a forbidden substring, try the next synonymous codon in preference order. Failure → `OptimizeError::PatternConflict`.
-3. **GC adjustment (best effort, single pass).** If GC is outside `[gc_min, gc_max]`, scan codons once and swap to synonymous codons that move GC toward the target band without introducing forbidden substrings. If a swap places GC inside the band, return that sequence. If the scan finishes inside the band, return it. Otherwise return the codon-optimised sequence from step 2 even if GC remains outside the band. Default window: **0.30–0.70** (`gc_min` / `gc_max`).
-4. **Translation.** Amino-acid sequence is preserved when steps 1–3 succeed.
+The command-line interface accepts positional `input`, optional `-o` / `--output` (default `<stem>_opt.json` or `<stem>_opt.fasta`), `--host` (default `e_coli_k12`), repeatable `--avoid`, `--gc-min` (default `0.3`), `--gc-max` (default `0.7`), optional `--design-spec`, optional `--verdict`, `--designer-human` (default `wetware`), and `--designer-agent` (default `synth`).
 
-**Default avoided restriction motifs (substring match, not enzyme names):** `GGTCTC`, `GAGACC`, `CGTCTC`, `GAGACG` (BsaI / BsmBI Type IIS sites). Override with repeated `--avoid` or `OptimizeOptions.avoid`.
-
-### Public API surface
-
-| Module / export | Responsibility |
-|-----------------|----------------|
-| `parse_seek_frame`, `SeekFrame`, `FrameKind`, `FramePhase`, `FrameTopo` | Seek JSON types |
-| `validate_frame_for_optimisation`, `optimize_seek_frame`, `to_seek_frame_json` | Frame path |
-| `optimize_cds`, `OptimizeOptions`, `OptimizeError`, `gc_content` | Core CDS logic |
-| `resolve_host`, `default_avoid_patterns` | Host aliases and default motifs |
-| `parse_fasta`, `format_fasta`, `optimize_fasta_records`, `FastaRecord` | FASTA path |
-| `OptimizeRequest`, `optimize_and_handoff`, `SynthHandoff`, `PipelineError` | Frame + `design_spec` |
-| `DesignSpec`, `DesignSpecOptions`, `design_spec_from_seek_frame`, `to_design_spec_json`, `resolve_bloc_chassis` | bloc handoff |
-| `parse_bloc_verdict`, `BlocVerdict`, `BlocPolicy`, `enforce_synthesis_gate`, `SynthesisGateError` | Verdict gate |
-| `translate_codon`, `preferred_codon`, `synonymous_codons` | Genetic code helpers |
-
-Library crate: `default-features = false` omits the CLI (`clap`). Feature `cli` (default) builds the `synth` binary.
-
-### Error and exit semantics
-
-**Library errors**
-
-| Type | Meaning |
-|------|---------|
-| `OptimizeError::BadLength` | `seq` length not divisible by 3 |
-| `OptimizeError::UnknownCodon` | Non-standard codon at byte offset |
-| `OptimizeError::PatternConflict` | No synonymous codon avoids all patterns at a position |
-| `FrameError::NotDna` | `kind` ≠ DNA |
-| `FrameError::WrongPhase` | `phase` ≠ `filled` |
-| `FrameError::EmptySequence` | `seq` empty |
-| `DesignSpecError` | Cannot build `design_spec` from frame |
-| `SynthesisGateError` | Verdict policy is `HOLD` or `ESCALATE` |
-
-**CLI exit codes**
-
-| Code | Condition |
-|------|-----------|
-| 0 | Success |
-| 1 | I/O failure, JSON parse error, empty FASTA, FASTA optimisation error, verdict read/parse error |
-| 2 | Seek frame validation or optimisation failure |
-| 10 | `--verdict` present and policy `HOLD` (matches bloc) |
-| 20 | `--verdict` present and policy `ESCALATE` (matches bloc) |
-
-`enforce_synthesis_gate` returns `Ok(())` only for `RELEASE`. `SynthesisGateError::exit_code()` uses 10 / 20.
-
-### CLI
-
-| Flag | Default | Effect |
-|------|---------|--------|
-| `input` | (required) | Seek frame or FASTA path |
-| `-o`, `--output` | `<stem>_opt.json` or `_opt.fasta` | Output path |
-| `--host` | `e_coli_k12` | Host / chassis string |
-| `--avoid` | (see motifs above) | Repeatable forbidden substrings |
-| `--gc-min` | `0.3` | Lower GC bound |
-| `--gc-max` | `0.7` | Upper GC bound |
-| `--design-spec` | (none) | Write bloc `design_spec` JSON |
-| `--verdict` | (none) | After success, require `RELEASE` in verdict file |
-| `--designer-human` | `wetware` | `designer.human` in emitted spec |
-| `--designer-agent` | `synth` | `designer.agent` in emitted spec |
-
-### Installation and usage
+Installation and use:
 
 ```bash
 git clone https://github.com/wetware-hq/synth.git
 cd synth
 cargo build --release
-```
-
-Seek frame:
-
-```bash
 ./target/release/synth examples/gfp_frame.json --host e_coli_k12 -o optimised.json
 ./target/release/synth examples/gfp_frame.json --design-spec gfp_spec.json
 ./target/release/synth examples/gfp_frame.json --verdict verdict.json
-```
-
-FASTA:
-
-```bash
 ./target/release/synth input.fasta --host yeast -o optimized.fasta
 ```
 
-Library dependency:
+Library dependency and call pattern:
 
 ```toml
 [dependencies]
@@ -163,9 +70,4 @@ let verdict = parse_bloc_verdict(&std::fs::read_to_string("verdict.json")?)?;
 enforce_synthesis_gate(&verdict)?;
 ```
 
-### Development
-
-```bash
-cargo test
-cargo clippy --all-targets --all-features -- -D warnings
-```
+For development, run `cargo test` and `cargo clippy --all-targets --all-features -- -D warnings`.
