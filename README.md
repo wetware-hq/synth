@@ -16,7 +16,7 @@ seek frame (phase: filled)  →  synth  →  optimised seek frame
                                 bloc design_spec  →  bloc screen  →  RELEASE | HOLD | ESCALATE
 ```
 
-Normative agent instructions: [`AGENTS.md`](AGENTS.md). Schemas: [Seek frame](https://github.com/wetware-hq/seek/blob/main/schema/frame.schema.json), [bloc design_spec](https://github.com/wetware-hq/bloc/blob/main/schemas/design_spec.schema.json), [bloc verdict](https://github.com/wetware-hq/bloc/blob/main/schemas/verdict.schema.json), [optimise request](schema/optimize_request.schema.json).
+Integration contract for hosts and automation: [`AGENTS.md`](AGENTS.md). Schemas: [Seek frame](https://github.com/wetware-hq/seek/blob/main/schema/frame.schema.json), [bloc design_spec](https://github.com/wetware-hq/bloc/blob/main/schemas/design_spec.schema.json), [bloc verdict](https://github.com/wetware-hq/bloc/blob/main/schemas/verdict.schema.json), [optimise request](schema/optimize_request.schema.json).
 
 ### Input contracts
 
@@ -34,8 +34,9 @@ Normative agent instructions: [`AGENTS.md`](AGENTS.md). Schemas: [Seek frame](ht
 | `cell_free` | `e_coli` | `cell_free` |
 | `other_bsl1` | `e_coli` | `other_bsl1` |
 | `none` | `e_coli` | `none` |
-| `other`, `human`, `h_sapiens` | `h_sapiens` for human; `e_coli` for `other` only | `other` |
-| (any other string) | passed through lowercased | `other` |
+| `human`, `h_sapiens` | `h_sapiens` | `other` |
+| `other` | `other` | `other` |
+| (any other string) | lowercased; unknown keys use E. coli codon table as fallback | `other` |
 
 ### Output contracts
 
@@ -168,7 +169,3 @@ enforce_synthesis_gate(&verdict)?;
 cargo test
 cargo clippy --all-targets --all-features -- -D warnings
 ```
-
-### Attribution
-
-Rust implementation originally developed in [heymcee/synth](https://github.com/heymcee/synth) (MIT).

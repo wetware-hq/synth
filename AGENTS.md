@@ -1,6 +1,6 @@
-# synth — agent instructions
+# Integration contract
 
-Operate the `synth` library or `synth` CLI to codon-optimise a **filled DNA** Seek frame (or FASTA for convenience). synth does **not** issue release decisions; bloc does.
+Instructions for hosts and automation that call the `synth` library or `synth` CLI. synth does **not** issue release decisions; bloc does.
 
 ## Tool purpose
 
@@ -13,15 +13,15 @@ Operate the `synth` library or `synth` CLI to codon-optimise a **filled DNA** Se
 ## When to use
 
 - Input is a **DNA** Seek frame with `phase: filled` and non-empty `seq` (length multiple of 3).
-- User needs synthesis-friendly codons for a known host (`e_coli_k12`, `yeast`, `human`, etc.).
-- Next step in Wetware pipeline after Seek fill; before or alongside bloc screening.
+- Synthesis-friendly codons are required for a known host (`e_coli_k12`, `yeast`, `human`, etc.).
+- Seek fill is complete; bloc screening is the next or parallel step.
 
 ## When not to use
 
 - `kind` is `RNA`, `AA`, or `XNA` → use Seek tools first (e.g. `seek.filler` for AA→DNA).
 - `phase` is not `filled` or `seq` is empty → fill sequence first.
-- User needs a safety or release decision → run `bloc screen`; do not infer clearance from synth output.
-- User needs amino-acid sequence invented from scratch → not supported.
+- A safety or release decision is required → run `bloc screen`; do not infer clearance from synth output.
+- De novo amino-acid sequence design → not supported.
 
 ## Input shapes
 
@@ -44,7 +44,7 @@ Operate the `synth` library or `synth` CLI to codon-optimise a **filled DNA** Se
 
 ### FASTA
 
-`>id` header lines and sequence lines. No frame schema. No `design_spec` handoff from CLI unless user builds frames manually.
+`>id` header lines and sequence lines. No frame schema. The CLI does not emit `design_spec` from FASTA input.
 
 ### Host string
 
@@ -94,14 +94,14 @@ Produce via `optimize_and_handoff` or `--design-spec`. Required root fields per 
 2. `validate_frame_for_optimisation(&frame)` → `Ok` or `FrameError`
 3. `optimize_seek_frame(frame, display_host, &OptimizeOptions)` → optimised frame
 4. `optimize_and_handoff(frame, &OptimizeRequest)` → `SynthHandoff { frame_result, design_spec }`
-5. After user runs `bloc screen`: `parse_bloc_verdict(json)` then `enforce_synthesis_gate(&verdict)` → `Ok` only if `RELEASE`
+5. After `bloc screen`: `parse_bloc_verdict(json)` then `enforce_synthesis_gate(&verdict)` → `Ok` only if `RELEASE`
 
 FASTA: `parse_fasta` → `optimize_fasta_records` → `format_fasta`.
 
 ## Failure modes
 
-| Error | Meaning | Agent action |
-|-------|---------|--------------|
+| Error | Meaning | Remediation |
+|-------|---------|-------------|
 | `FrameError::NotDna` | Wrong `kind` | Run AA→DNA fill; retry with DNA frame |
 | `FrameError::WrongPhase` | Not `filled` | Complete Seek fill; set `phase: filled` |
 | `FrameError::EmptySequence` | No sequence | Fill `seq` first |
@@ -115,8 +115,8 @@ FASTA: `parse_fasta` → `optimize_fasta_records` → `format_fasta`.
 
 ## Pipeline rules
 
-1. Prefer Seek frame over FASTA.
-2. After synth, user **must** run `bloc screen` on `design_spec` before any synthesis or ordering step.
+1. Use a Seek frame when bloc handoff is required; FASTA is for sequence-only interchange.
+2. After synth, run `bloc screen` on `design_spec` before any synthesis or ordering step.
 3. Call `enforce_synthesis_gate` (or `synth --verdict`) when a verdict file exists; do not proceed on `HOLD` or `ESCALATE`.
 4. Do not treat `synth_optimised` feature or optimised `seq` as a safety clearance.
 

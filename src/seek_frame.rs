@@ -101,7 +101,7 @@ pub enum FrameError {
     Optimize(#[from] OptimizeError),
 }
 
-/// Validate that a frame is ready for synth (per source `AGENTS.md` / `optimize.py`).
+/// Validate that a frame meets preconditions for codon optimisation.
 pub fn validate_frame_for_optimisation(frame: &SeekFrame) -> Result<(), FrameError> {
     if frame.kind != FrameKind::Dna {
         return Err(FrameError::NotDna(frame.kind));

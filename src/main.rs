@@ -133,7 +133,7 @@ fn run() -> Result<(), i32> {
             })?;
             println!("Wrote bloc design_spec to {}", spec_path.display());
         } else {
-            println!("Next: bloc design_spec → bloc screen before any synthesis path.");
+            println!("Run bloc screen on a design_spec before any synthesis path.");
         }
 
         println!(
@@ -185,7 +185,7 @@ fn run() -> Result<(), i32> {
             records.len(),
             out.display()
         );
-        println!("Prefer Seek frames in Wetware sessions. Route through bloc before synthesis.");
+        println!("Seek frames are required for bloc design_spec handoff.");
     }
     Ok(())
 }
