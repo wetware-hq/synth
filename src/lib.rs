@@ -32,6 +32,7 @@
 
 mod bloc;
 mod codon;
+mod codon_tables;
 mod fasta;
 mod host;
 mod optimize;
@@ -44,7 +45,10 @@ pub use bloc::{
     design_spec_from_seek_frame, enforce_synthesis_gate, parse_bloc_verdict, resolve_bloc_chassis,
     to_design_spec_json,
 };
-pub use codon::{preferred_codon, synonymous_codons, translate_codon};
+pub use codon::{
+    CodonFrequency, CodonUsage, codon_relative_frequency, preferred_codon, synonymous_codons,
+    translate_codon,
+};
 pub use fasta::{FastaRecord, format_fasta, optimize_fasta_records, parse_fasta};
 pub use host::{default_avoid_patterns, resolve_host};
 pub use optimize::{OptimizeError, OptimizeOptions, gc_content, optimize_cds};

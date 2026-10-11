@@ -49,6 +49,21 @@ OptimizeOptions:
   gc_max: f64 default 0.7
 ```
 
+## codon_tables
+
+```
+source: FDA HIVE CoCoPUTs (HIVE-CUTs) — compile-time src/codon_tables.rs; NO runtime fetch/cache
+vendored: data/cocoputs/*.tsv retrieved 2026-10-11; genomic RefSeq counts; per-aa rel_freq sums to 1
+regen: python3 data/cocoputs/generate_tables.py
+host key → taxid / file:
+  e_coli* → 511145 taxid_511145_ecoli_k12_mg1655_genomic.tsv
+  s_cerevisiae|yeast → 4932 taxid_4932_s_cerevisiae_genomic.tsv
+  h_sapiens|human → 9606 taxid_9606_h_sapiens_genomic.tsv
+refresh: prefer CoCoPUTs bulk downloads; CGI ionTaxidCollapseExt fallback (see data/cocoputs/README.md)
+if CoCoPUTs unavailable: Edinburgh-Genome-Foundry/codon-usage-tables (Kazusa/GenBank 160.0, 2007) — document clearly
+synonymous_codons → &'static [CodonUsage] (freq-ordered); preferred_codon = first entry
+```
+
 ## algorithm
 
 ```
@@ -94,7 +109,7 @@ optimize_and_handoff(SeekFrame, &OptimizeRequest) → SynthHandoff | PipelineErr
 parse_fasta → optimize_fasta_records → format_fasta
 design_spec_from_seek_frame / to_design_spec_json
 parse_bloc_verdict → enforce_synthesis_gate / gate_synthesis
-helpers: optimize_cds, gc_content, translate_codon, preferred_codon, synonymous_codons, default_avoid_patterns
+helpers: optimize_cds, gc_content, translate_codon, preferred_codon, synonymous_codons, codon_relative_frequency, CodonUsage, default_avoid_patterns
 crate feature cli (default): binary synth; default-features=false → lib only
 ```
 

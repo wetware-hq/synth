@@ -96,7 +96,7 @@ fn optimize_cds_with_refs(
             return Err(OptimizeError::UnknownCodon(i * 3));
         }
 
-        let chosen = choose_codon(&candidates, &out, avoid)
+        let chosen = choose_codon(candidates, &out, avoid)
             .ok_or(OptimizeError::PatternConflict(i * 3))?;
         out.push_str(chosen);
     }
@@ -115,11 +115,15 @@ fn normalise(s: &str) -> String {
         .collect()
 }
 
-fn choose_codon<'a>(candidates: &[&'a str], prefix: &str, avoid: &[&str]) -> Option<&'a str> {
+fn choose_codon<'a>(
+    candidates: &'a [crate::CodonUsage],
+    prefix: &str,
+    avoid: &[&str],
+) -> Option<&'a str> {
     for c in candidates {
-        let trial = format!("{prefix}{c}");
+        let trial = format!("{prefix}{}", c.codon);
         if !contains_any(&trial, avoid) {
-            return Some(*c);
+            return Some(c.codon);
         }
     }
     None
@@ -149,10 +153,10 @@ fn adjust_gc(
         let aa = translate_codon(&codons[i])?;
         let alts = synonymous_codons(aa, host);
         for alt in alts {
-            if alt == codons[i] {
+            if alt.codon == codons[i] {
                 continue;
             }
-            let alt_gc = alt.chars().filter(|c| *c == 'G' || *c == 'C').count();
+            let alt_gc = alt.codon.chars().filter(|c| *c == 'G' || *c == 'C').count();
             let cur_gc = codons[i].chars().filter(|c| *c == 'G' || *c == 'C').count();
             let improves = if want_higher {
                 alt_gc > cur_gc
@@ -163,7 +167,7 @@ fn adjust_gc(
                 continue;
             }
             let old = codons[i].clone();
-            codons[i] = alt.to_string();
+            codons[i] = alt.codon.to_string();
             let trial: String = codons.iter().cloned().collect();
             if !contains_any(&trial, avoid) {
                 let new_gc = gc_content(&trial);

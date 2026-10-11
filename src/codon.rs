@@ -1,6 +1,27 @@
-//! Standard genetic code and preferred-codon tables.
+//! Standard genetic code and codon usage tables (CoCoPUTs / HIVE-CUTs).
 //!
-//! Preferred codons maximise local CAI (most frequent synonymous codon per host).
+//! Relative frequencies are per amino acid (synonymous codons sum to 1.0 within each family).
+//! Source: FDA DNA HIVE CoCoPUTs, genomic RefSeq counts — see `data/cocoputs/` and crate README.
+
+use crate::codon_tables::{AaCodons, table_for_host};
+
+pub use crate::codon_tables::CodonUsage;
+
+/// Relative usage of one synonymous codon within its amino-acid family (0.0–1.0).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CodonFrequency {
+    pub codon: &'static str,
+    pub rel_freq: f32,
+}
+
+impl From<CodonUsage> for CodonFrequency {
+    fn from(u: CodonUsage) -> Self {
+        Self {
+            codon: u.codon,
+            rel_freq: u.rel_freq,
+        }
+    }
+}
 
 /// NCBI standard code (table 1) codon → amino acid (one-letter; `*` stop).
 pub fn translate_codon(codon: &str) -> Option<char> {
@@ -30,134 +51,77 @@ pub fn translate_codon(codon: &str) -> Option<char> {
     })
 }
 
-/// Preferred (most frequent) codon per amino acid for a host.
-pub fn preferred_codon(aa: char, host: &str) -> Option<&'static str> {
-    let table = host_table(host);
-    table.iter().find(|(k, _)| *k == aa).map(|(_, v)| *v)
+fn aa_entry(aa: char, host: &str) -> Option<&'static AaCodons> {
+    table_for_host(host)
+        .iter()
+        .find(|entry| entry.aa == aa)
 }
 
-/// Alternative synonymous codons (preferred first) for pattern avoidance.
-pub fn synonymous_codons(aa: char, host: &str) -> Vec<&'static str> {
-    let preferred = preferred_codon(aa, host);
-    let all = all_codons_for(aa);
-    let mut out = Vec::new();
-    if let Some(p) = preferred {
-        out.push(p);
-    }
-    for c in all {
-        if Some(c) != preferred {
-            out.push(c);
+/// Preferred (highest relative frequency) synonymous codon for a host.
+pub fn preferred_codon(aa: char, host: &str) -> Option<&'static str> {
+    aa_entry(aa, host).and_then(|e| e.codons.first().map(|c| c.codon))
+}
+
+/// Synonymous codons for an amino acid, ordered by descending CoCoPUTs relative frequency.
+pub fn synonymous_codons(aa: char, host: &str) -> &'static [CodonUsage] {
+    aa_entry(aa, host)
+        .map(|e| e.codons)
+        .unwrap_or(&[])
+}
+
+/// Relative frequency of a codon within its amino-acid family for the given host key.
+pub fn codon_relative_frequency(codon: &str, host: &str) -> Option<f32> {
+    let aa = translate_codon(codon)?;
+    aa_entry(aa, host).and_then(|e| {
+        e.codons
+            .iter()
+            .find(|c| c.codon == codon)
+            .map(|c| c.rel_freq)
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const AA_STOPS: &str = "ACDEFGHIKLMNPQRSTVWY*";
+
+    fn assert_table_complete(host: &str) {
+        for aa in AA_STOPS.chars() {
+            let codons = synonymous_codons(aa, host);
+            assert!(!codons.is_empty(), "missing codons for {aa} host {host}");
+            let sum: f32 = codons.iter().map(|c| c.rel_freq).sum();
+            assert!(
+                (sum - 1.0).abs() < 1e-5,
+                "freq sum for {aa} host {host}: {sum}"
+            );
+            assert_eq!(codons[0].codon, preferred_codon(aa, host).unwrap());
+            for c in codons {
+                assert_eq!(translate_codon(c.codon), Some(aa));
+            }
         }
     }
-    out
-}
 
-fn host_table(host: &str) -> &'static [(char, &'static str)] {
-    match host {
-        "e_coli" | "ecoli" | "e_coli_k12" | "e_coli_b" | "cell_free" | "other_bsl1" | "other"
-        | "none" => ECO,
-        "yeast" | "s_cerevisiae" => YEAST,
-        "human" | "h_sapiens" => HUMAN,
-        _ => ECO,
+    #[test]
+    fn tables_complete_for_all_hosts() {
+        assert_table_complete("e_coli");
+        assert_table_complete("s_cerevisiae");
+        assert_table_complete("h_sapiens");
+    }
+
+    #[test]
+    fn yeast_leucine_top_is_ttg() {
+        assert_eq!(preferred_codon('L', "s_cerevisiae"), Some("TTG"));
+    }
+
+    #[test]
+    fn human_leucine_top_is_ctg() {
+        assert_eq!(preferred_codon('L', "h_sapiens"), Some("CTG"));
+    }
+
+    #[test]
+    fn relative_frequency_lookup() {
+        let f = codon_relative_frequency("CTG", "e_coli").unwrap();
+        assert!(f > 0.0 && f <= 1.0);
     }
 }
-
-fn all_codons_for(aa: char) -> Vec<&'static str> {
-    match aa {
-        'F' => vec!["TTT", "TTC"],
-        'L' => vec!["TTA", "TTG", "CTT", "CTC", "CTA", "CTG"],
-        'I' => vec!["ATT", "ATC", "ATA"],
-        'M' => vec!["ATG"],
-        'V' => vec!["GTT", "GTC", "GTA", "GTG"],
-        'S' => vec!["TCT", "TCC", "TCA", "TCG", "AGT", "AGC"],
-        'P' => vec!["CCT", "CCC", "CCA", "CCG"],
-        'T' => vec!["ACT", "ACC", "ACA", "ACG"],
-        'A' => vec!["GCT", "GCC", "GCA", "GCG"],
-        'Y' => vec!["TAT", "TAC"],
-        '*' => vec!["TAA", "TAG", "TGA"],
-        'H' => vec!["CAT", "CAC"],
-        'Q' => vec!["CAA", "CAG"],
-        'N' => vec!["AAT", "AAC"],
-        'K' => vec!["AAA", "AAG"],
-        'D' => vec!["GAT", "GAC"],
-        'E' => vec!["GAA", "GAG"],
-        'C' => vec!["TGT", "TGC"],
-        'W' => vec!["TGG"],
-        'R' => vec!["CGT", "CGC", "CGA", "CGG", "AGA", "AGG"],
-        'G' => vec!["GGT", "GGC", "GGA", "GGG"],
-        _ => vec![],
-    }
-}
-
-// Most frequent codon (CAI method) — E. coli highly expressed (Kazusa-style)
-const ECO: &[(char, &str)] = &[
-    ('A', "GCG"),
-    ('C', "TGC"),
-    ('D', "GAT"),
-    ('E', "GAA"),
-    ('F', "TTT"),
-    ('G', "GGC"),
-    ('H', "CAT"),
-    ('I', "ATT"),
-    ('K', "AAA"),
-    ('L', "CTG"),
-    ('M', "ATG"),
-    ('N', "AAC"),
-    ('P', "CCG"),
-    ('Q', "CAG"),
-    ('R', "CGT"),
-    ('S', "AGC"),
-    ('T', "ACC"),
-    ('V', "GTG"),
-    ('W', "TGG"),
-    ('Y', "TAT"),
-    ('*', "TAA"),
-];
-
-const YEAST: &[(char, &str)] = &[
-    ('A', "GCT"),
-    ('C', "TGT"),
-    ('D', "GAT"),
-    ('E', "GAA"),
-    ('F', "TTT"),
-    ('G', "GGT"),
-    ('H', "CAT"),
-    ('I', "ATT"),
-    ('K', "AAA"),
-    ('L', "TTG"),
-    ('M', "ATG"),
-    ('N', "AAT"),
-    ('P', "CCA"),
-    ('Q', "CAA"),
-    ('R', "AGA"),
-    ('S', "TCT"),
-    ('T', "ACT"),
-    ('V', "GTT"),
-    ('W', "TGG"),
-    ('Y', "TAT"),
-    ('*', "TAA"),
-];
-
-const HUMAN: &[(char, &str)] = &[
-    ('A', "GCC"),
-    ('C', "TGC"),
-    ('D', "GAC"),
-    ('E', "GAG"),
-    ('F', "TTC"),
-    ('G', "GGC"),
-    ('H', "CAC"),
-    ('I', "ATC"),
-    ('K', "AAG"),
-    ('L', "CTG"),
-    ('M', "ATG"),
-    ('N', "AAC"),
-    ('P', "CCC"),
-    ('Q', "CAG"),
-    ('R', "CGC"),
-    ('S', "AGC"),
-    ('T', "ACC"),
-    ('V', "GTG"),
-    ('W', "TGG"),
-    ('Y', "TAC"),
-    ('*', "TGA"),
-];
