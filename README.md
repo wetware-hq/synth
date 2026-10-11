@@ -6,7 +6,7 @@ synth - a design room for synthetic DNA: optimizes a coding sequence for the sel
 
 synth prepares a DNA coding sequence for gene synthesis and related laboratory work. It replaces codons with alternatives that are common in a host organism you select while preserving the protein sequence under the NCBI standard genetic code (table 1). It also reduces the presence of short forbidden DNA motifs and nudges overall GC content toward a configurable band. synth does not run laboratory experiments, search for sequences of concern, or translate an amino-acid design into DNA; those steps belong to other Wetware tools.
 
-## Place in the Wetware pipeline
+## Pipeline
 
 Wetware design flow treats Seek as the frame layer, synth as codon optimisation for synthesis, and bloc as the screening authority before any synthesis path. A typical handoff is: a filled DNA Seek frame enters synth; synth emits an optimised Seek frame and optionally a bloc design specification; an external `bloc screen` run produces a verdict with policy RELEASE, HOLD, or ESCALATE. synth does not execute bloc screening and does not infer clearance from optimisation alone.
 
@@ -16,7 +16,7 @@ The primary input is a filled Seek frame: a JSON document with exactly eight req
 
 The command-line program treats input as a Seek frame when the path ends in `.json` or `.seek`, or when the file content begins with `{`. Any other path is read as FASTA (one or more `>` records). FASTA input supports codon optimisation only; it does not produce a bloc design specification.
 
-## Host selection and codon choice
+## Host and codons
 
 You select the expression context with `--host` on the command line (default `e_coli_k12`) or with `OptimizeRequest.display_host` in the library. The function `resolve_host` maps that display string to an internal codon-table key stored as `species` on the `synth_optimised` feature. The function `resolve_bloc_chassis` maps the same display string to the `chassis` field when building a bloc design specification.
 
@@ -48,11 +48,11 @@ A bloc design specification is JSON for `bloc screen`, with `spec_version` `"0.1
 
 Published JSON schemas include the [Seek frame](https://github.com/wetware-hq/seek/blob/main/schema/frame.schema.json), [bloc design_spec](https://github.com/wetware-hq/bloc/blob/main/schemas/design_spec.schema.json), [bloc verdict](https://github.com/wetware-hq/bloc/blob/main/schemas/verdict.schema.json), and [optimise request](schema/optimize_request.schema.json).
 
-## Synthesis gate
+## Gate
 
 bloc screening returns a verdict whose policy is RELEASE, HOLD, or ESCALATE. synth reads an existing verdict file via `parse_bloc_verdict` and applies `enforce_synthesis_gate` (or `gate_synthesis`), which succeeds only when policy is RELEASE. On the command line, `--verdict` runs this check after a successful Seek frame run. HOLD yields exit code 10 and ESCALATE yields exit code 20, matching bloc; `SynthesisGateError::exit_code` uses the same values.
 
-## Library and CLI
+## API
 
 The crate exposes a library API and an optional binary. The `cli` feature (on by default) builds the `synth` binary; set `default-features = false` in Cargo to depend on the library without clap.
 
@@ -62,7 +62,7 @@ Library errors include `OptimizeError::BadLength`, `OptimizeError::UnknownCodon`
 
 The CLI accepts one positional `input` path and optional `-o` / `--output` (default `<stem>_opt.json` or `<stem>_opt.fasta`), `--host`, repeatable `--avoid`, `--gc-min`, `--gc-max`, `--design-spec`, `--verdict`, `--designer-human` (default `wetware`), and `--designer-agent` (default `synth`). Exit code 0 indicates success. Code 1 covers I/O failure, Seek JSON parse failure, empty FASTA, FASTA optimisation failure, or verdict read/parse failure. Code 2 covers frame validation or optimisation failure. Codes 10 and 20 apply when `--verdict` is set and policy is HOLD or ESCALATE respectively.
 
-## Provenance of codon tables
+## Provenance
 
 Codon usage is compiled into `src/codon_tables.rs` at build time. There is no network access at runtime and no on-disk cache. Tables are derived from vendored FDA DNA HIVE CoCoPUTs (HIVE-CUTs) genomic count snapshots under `data/cocoputs/`, regenerated with `python3 data/cocoputs/generate_tables.py`. Retrieval date for the vendored files is **2026-10-11**.
 
@@ -74,7 +74,7 @@ Codon usage is compiled into `src/codon_tables.rs` at build time. There is no ne
 
 Bulk files from the CoCoPUTs download tab are preferred when refreshing; the current snapshots were obtained via the public `ionTaxidCollapseExt` CGI endpoint documented in `data/cocoputs/README.md`. If CoCoPUTs is unavailable during regeneration, fall back to Kazusa-derived tables in [Edinburgh Genome Foundry codon-usage-tables](https://github.com/Edinburgh-Genome-Foundry/codon-usage-tables) (GenBank release 160.0, 2007) and document that provenance explicitly. The vendored data in this repository is CoCoPUTs, not Kazusa.
 
-## Building and depending on the crate
+## Build
 
 ```bash
 git clone https://github.com/wetware-hq/synth.git
