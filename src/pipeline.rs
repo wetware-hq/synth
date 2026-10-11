@@ -1,4 +1,4 @@
-//! Seek → synth → bloc pipeline helpers (see `AGENTS.md`).
+//! Seek → synth → bloc pipeline helpers.
 
 use crate::bloc::{
     DesignSpec, DesignSpecOptions, enforce_synthesis_gate, design_spec_from_seek_frame,

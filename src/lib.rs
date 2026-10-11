@@ -1,6 +1,6 @@
-//! Codon optimisation for DNA synthesis and host expression.
+//! synth - a design room for synthetic DNA: optimizes a coding sequence for the selected host, removes unwanted restriction digestion sites, holds GC in thermodynamically favorable range.
 //!
-//! Wetware pipeline (see `AGENTS.md` in this repository):
+//! Wetware pipeline (see [`AGENTS.md`](https://github.com/wetware-hq/synth/blob/main/AGENTS.md) and `README.md`):
 //!
 //! ```text
 //! seek frame (phase: filled)  →  synth  →  optimised seek frame

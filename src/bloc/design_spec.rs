@@ -120,7 +120,7 @@ pub struct DesignSpecOptions {
     pub chassis: BlocChassis,
     pub intended_function: IntendedFunction,
     pub intended_bsl: IntendedBsl,
-    /// When `true`, bloc screen will not issue a synthesis clearance (see bloc fixtures).
+    /// When `true`, bloc screen will not issue a synthesis clearance.
     pub not_for_synthesis: bool,
 }
 
@@ -150,10 +150,9 @@ pub enum DesignSpecError {
     NoFragments,
 }
 
-/// Map a user-facing host / chassis string to bloc `chassis` (per source `HOST_MAP` / bloc schema).
+/// Map a host / chassis string to bloc `chassis` (`schemas/design_spec.schema.json`).
 ///
-/// `human` / `h_sapiens` are not bloc chassis values; they map to [`BlocChassis::Other`]
-/// (documented assumption — hosts should prefer bloc chassis names).
+/// `human` / `h_sapiens` are not bloc chassis enum values; they map to [`BlocChassis::Other`].
 pub fn resolve_bloc_chassis(host: &str) -> BlocChassis {
     let key = host.to_lowercase().replace([' ', '-'], "_");
     match key.as_str() {

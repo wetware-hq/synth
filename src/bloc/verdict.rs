@@ -86,7 +86,7 @@ pub fn parse_bloc_verdict(json: &str) -> Result<BlocVerdict, serde_json::Error> 
     serde_json::from_str(json)
 }
 
-/// Error when a verdict blocks the synthesis path (per source `AGENTS.md`).
+/// Error when a verdict blocks the synthesis path.
 #[derive(Debug, Error, PartialEq, Eq)]
 #[error("synthesis blocked: bloc policy {policy} (construct {construct_id})")]
 pub struct SynthesisGateError {
