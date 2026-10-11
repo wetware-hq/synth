@@ -1,0 +1,36 @@
+[package]
+name = "synth"
+version = "0.1.0"
+edition = "2021"
+description = "Codon optimisation for DNA synthesis and host expression"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/wetware-hq/synth"
+keywords = ["bioinformatics", "codon-optimization", "dna", "synthesis"]
+categories = ["science"]
+
+[lib]
+name = "synth"
+path = "src/lib.rs"
+
+[[bin]]
+name = "synth"
+path = "src/main.rs"
+required-features = ["cli"]
+
+[features]
+default = ["cli"]
+cli = ["dep:clap"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+[dependencies.clap]
+version = "=4.5.23"
+features = ["derive"]
+optional = true
+
+[dev-dependencies]
+pretty_assertions = "1"

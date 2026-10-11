@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wetwarehq.github.io/synth/schema/optimize_request.schema.json",
+  "title": "Synth optimise request",
+  "description": "Request to optimise one Seek frame for synthesis and host.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["frame", "host"],
+  "properties": {
+    "frame": {
+      "type": "object",
+      "description": "Seek frame (see wetware-hq/seek schema/frame.schema.json). kind MUST be DNA for CDS optimisation.",
+      "required": ["id", "kind", "topo", "seq", "features", "want", "forbid", "phase"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "enum": ["DNA", "RNA", "AA", "XNA"] },
+        "topo": { "enum": ["linear", "circular"] },
+        "seq": { "type": "string" },
+        "features": { "type": "array" },
+        "want": { "type": "array", "items": { "type": "string" } },
+        "forbid": { "type": "array", "items": { "type": "string" } },
+        "phase": { "enum": ["spec", "filled", "kill", "tube"] }
+      }
+    },
+    "host": {
+      "type": "string",
+      "description": "Target expression host / chassis. Prefer bloc chassis values.",
+      "examples": ["e_coli_k12", "e_coli_b", "yeast", "human"]
+    },
+    "avoid_patterns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Additional DNA Chisel AvoidPattern names or sequences."
+    },
+    "gc_min": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.3 },
+    "gc_max": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.7 }
+  }
+}
