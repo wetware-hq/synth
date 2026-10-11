@@ -113,3 +113,13 @@ enforce_synthesis_gate(&verdict)?;
 ```
 
 Contributors run `cargo test` and `cargo clippy --all-targets --all-features -- -D warnings` before merging changes.
+
+## References
+
+Codon usage in this crate is taken from the FDA DNA HIVE [CoCoPUTs and HIVE-CUTs](https://dnahive.fda.gov/dna.cgi?cmd=cuts_main) database. The vendored genomic RefSeq snapshots use NCBI taxonomy identifiers 511145 (*Escherichia coli* K-12 substr. MG1655), 4932 (*Saccharomyces cerevisiae*), and 9606 (*Homo sapiens*), retrieved on 2026-10-11, as described under `data/cocoputs/`.
+
+Alexaki A, Kames J, Holcomb DD, Athey J, Santana-Quintero LV, Lam PVN, Hamasaki-Katagiri N, Osipova E, Simonyan V, Bar H, Komar AA, Kimchi-Sarfaty C. Codon and Codon-Pair Usage Tables (CoCoPUTs): facilitating genetic variation analyses and recombinant gene design. *Journal of Molecular Biology*. 2019. [https://doi.org/10.1016/j.jmb.2019.04.021](https://doi.org/10.1016/j.jmb.2019.04.021)
+
+Protein translation follows the NCBI standard genetic code (translation table 1), as documented in [The Genetic Codes](https://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi?mode=c) at NCBI.
+
+Seek frame documents conform to the [Seek frame schema](https://github.com/wetware-hq/seek/blob/main/schema/frame.schema.json). Bloc handoff and screening use the [bloc design_spec schema](https://github.com/wetware-hq/bloc/blob/main/schemas/design_spec.schema.json) and the [bloc verdict schema](https://github.com/wetware-hq/bloc/blob/main/schemas/verdict.schema.json).
