@@ -17,8 +17,8 @@ You choose the host with `--host` on the command line. The default is `e_coli_k1
 | `other_bsl1` | `e_coli` | `other_bsl1` |
 | `none` | `e_coli` | `none` |
 | `human`, `h_sapiens` | `h_sapiens` | `other` |
-| `other` | `other` | `other` |
-| any other string | lowercased; unknown names use the E. coli codon table | `other` |
+| `other` | `e_coli` | `other` |
+| any other string | lowercased with spaces and hyphens as underscores; the string is returned unchanged unless it matches a row above; codon choice then uses the E. coli table when the key is not `s_cerevisiae` or `h_sapiens` | `other` |
 
 If you do not pass `--avoid` on the command line, the program uses `default_avoid_patterns`, which is the four substrings listed above. In the library you set the list on `OptimizeOptions.avoid`. During codon choice the program treats a pattern as forbidden when it appears anywhere in the sequence built so far plus the candidate codon.
 

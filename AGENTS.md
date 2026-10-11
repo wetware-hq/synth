@@ -39,8 +39,8 @@ host string → resolve_host (codons), resolve_bloc_chassis (DesignSpec.chassis)
   other_bsl1 → e_coli / other_bsl1
   none → e_coli / none
   human|h_sapiens → h_sapiens / other
-  other → other / other
-  else → lowercased host key (unknown → E. coli table) / other
+  other → e_coli / other
+  else → resolve_host: lowercased key returned as-is; synonymous_codons uses E. coli table unless key is s_cerevisiae|h_sapiens / other
 
 OptimizeOptions:
   host: String (resolved codon key)
