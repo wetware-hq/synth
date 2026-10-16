@@ -123,3 +123,7 @@ Alexaki A, Kames J, Holcomb DD, Athey J, Santana-Quintero LV, Lam PVN, Hamasaki-
 Protein translation follows the NCBI standard genetic code (translation table 1), as documented in [The Genetic Codes](https://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi?mode=c) at NCBI.
 
 Seek frame documents conform to the [Seek frame schema](https://github.com/wetware-hq/seek/blob/main/schema/frame.schema.json). Bloc handoff and screening use the [bloc design_spec schema](https://github.com/wetware-hq/bloc/blob/main/schemas/design_spec.schema.json) and the [bloc verdict schema](https://github.com/wetware-hq/bloc/blob/main/schemas/verdict.schema.json).
+
+## Cloning environment
+
+A terminal-native molecular cloning environment lives in [`cloning/`](cloning/README.md): seven single-purpose commands for inspecting records, annotating features, finding reading frames, restriction digests, primer design, PCR and Gibson simulation, and emitting a construct specification. Run the whole happy path with `./demo.sh`. Design specifications only, on made-up inputs, for research and not treatment.

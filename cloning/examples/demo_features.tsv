@@ -1,0 +1,4 @@
+label	type	start	end	strand	note
+upstream_flank	misc_feature	1	60	1	invented padding before the gene
+demo_gene	CDS	61	663	1	invented protein-coding region
+downstream_flank	misc_feature	664	720	1	invented padding after the gene

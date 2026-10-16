@@ -1,0 +1,43 @@
+LOCUS       demo_vector             1891 bp    DNA     circular UNK 01-JAN-1970
+DEFINITION  made-up circular backbone, one EcoRI site.
+ACCESSION   DEMO-VECTOR
+VERSION     DEMO-VECTOR
+KEYWORDS    .
+SOURCE      .
+  ORGANISM  .
+            .
+FEATURES             Location/Qualifiers
+ORIGIN
+        1 tatttctacg accgggtttc ctggcaagtg gtgcaaatag agtgtaggtg aatgcgacac
+       61 ctagttgcta cgactttaga taaaaagggc actgattgct tgggcaccta tcctagagac
+      121 agtgctaata caggaagtcg atctctagta taacgccaag aggctgctaa tcaacacgta
+      181 cttgagtgac atgtccttcc tatcccaata agaagtcacg tcccgctaga tccattccca
+      241 gtttaagacg tgatgccggg attgcgctga agtgggcgga ggttagggtg gagaagaggg
+      301 tcgatactta cagcagaata tttggaacct gattagaatt tggctattac aaagtacctg
+      361 tcccctagga atcgctcttg ctcgacaccg tgcgcaacct atgatatcgg agcccacctc
+      421 cgctcccgtc ttcgcgactt attatgactt aaacaagagc ggtatcacca taatatatga
+      481 acatgtaaag tgcacctcag cctgctcagg gattccttgg ctcgagtcga tcggccttca
+      541 gcgacttcta gcgaggttat ggtcttcgcg cgttgcagca ggcctcggcc tagggcgcct
+      601 ctcgcgcaac cgaaggcagt taattgaatg ggagagcctt aaaagtgagt ctctactaat
+      661 cgcccgttta attgcagttt ccttgtccaa caggaaaatt gtttggatct ttcaggggca
+      721 cgaatggggt ctctgccaga ttgggatgta catggcatgt catctgcaaa aaggcaagcg
+      781 aatcgggtcg cacgacgata agccaagatc tctcgtatac gccaggcatc ggaggcataa
+      841 gtcgaggcgc taatagtgcg gcctatgtgc gtctaagccg gccgggctct ctactcccaa
+      901 ggaatacagt agcgacgccc tagttgacaa tctaatccta gtcgtgtctc ggctgcggtg
+      961 cgcatggaga actcgcctaa ggaagtagtt taccctgcat tattttggcg ctggcccgct
+     1021 tcctgcctac aggagatttg aattggcagc ctacccgccg cctgttgcgg taagtctgga
+     1081 tagggcgtaa gaggaaccga tccccagcaa atagtcggac aagcggatga gttattgggc
+     1141 gaggcaaagg agtgaattcc gtgttctgct tcgtcgaatc ctgaatgatg gtcagggtaa
+     1201 gattactaga taaatcagaa atcctagatc acaaatctcg caaatgtata aacgcgaacg
+     1261 tggaggccta gggctcagcg gatcccgcac gcggactcac ccgtagcggg ctaattgatt
+     1321 aaaatttacc gtattgtctg tcagggggaa atgtaggagc atttccaatt ccaaaagcac
+     1381 ttttcctcca acctcgtcac gtctaaggtt ctggaataaa tgttatgatg tgccgccgaa
+     1441 ggtgaaaaaa cctcatgcac ctcctcagtg cattttgatg actagaagct tgcgttgttc
+     1501 gccgcaaaga ttaccatgct cacataggaa atctatgagt gagctcccct ctaatcgctg
+     1561 tgttctgcta agccccttgt acttgtactg cgtataatag gcactcgtca agtcgtttta
+     1621 catcggggat agccacaagg aatcagccac acaataatca gcttcgcgat gttgcggctc
+     1681 aagcattaga ttatcgcatg ctaaactcat tggttctgta gccattagat ggcagttccc
+     1741 ctaccaacgg ttaacgtgac ccagatgatg atatgggcca actccggaag actcgggctg
+     1801 accacactaa gagataaatg gttcacaatg tgcatgatgt tacacccgca agagcttcag
+     1861 gactacgagg aaaccgagta gggataagcc a
+//

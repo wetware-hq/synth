@@ -1,2 +1,7 @@
 /target/
 **/*.rs.bk
+cloning/out/
+cloning/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/

@@ -1,0 +1,223 @@
+
+### STEP 1: load and inspect the made-up vector
+$ python -m synthlab.inspect examples/demo_vector.gb
+
+========================================================================
+synth cloning :: inspect
+synth / cloning - design specifications only.
+Made-up inputs, research and not treatment. Not for use with real patients.
+No ordering or synthesis path. Text output only, no network.
+========================================================================
+field          value                                    
+-------------  -----------------------------------------
+id             DEMO-VECTOR                              
+name           demo_vector                              
+description    made-up circular backbone, one EcoRI site
+length_bp      1891                                     
+topology       circular                                 
+gc_percent     49.5                                     
+feature_count  0                                        
+
+First 60 bases: TATTTCTACGACCGGGTTTCCTGGCAAGTGGTGCAAATAGAGTGTAGGTGAATGCGACAC
+Last 60 bases:  GCATGATGTTACACCCGCAAGAGCTTCAGGACTACGAGGAAACCGAGTAGGGATAAGCCA
+
+In plain English: this file holds one DNA sequence of 1891 letters, drawn as a circular molecule, with 0 labelled regions recorded on it.
+
+### STEP 2: label the regions of the made-up insert
+$ python -m synthlab.annotate examples/demo_insert.fasta --features examples/demo_features.tsv --out out/insert_annotated.gb
+
+========================================================================
+synth cloning :: annotate
+synth / cloning - design specifications only.
+Made-up inputs, research and not treatment. Not for use with real patients.
+No ordering or synthesis path. Text output only, no network.
+========================================================================
+label             type          start  end  strand  length_bp
+----------------  ------------  -----  ---  ------  ---------
+upstream_flank    misc_feature  1      60   +       60       
+demo_gene         CDS           61     663  +       603      
+downstream_flank  misc_feature  664    720  +       57       
+
+In plain English: 3 regions of this DNA are now labelled, and the labelled copy was written to out/insert_annotated.gb.
+
+### STEP 3: find the protein recipes and read them out
+$ python -m synthlab.orfs out/insert_annotated.gb --min-aa 100 --out out/orfs.json
+
+========================================================================
+synth cloning :: orfs
+synth / cloning - design specifications only.
+Made-up inputs, research and not treatment. Not for use with real patients.
+No ordering or synthesis path. Text output only, no network.
+========================================================================
+n  strand  frame  start  end  length_nt  length_aa
+-  ------  -----  -----  ---  ---------  ---------
+1  +       1      61     663  603        200      
+
+Longest protein (one letter per amino acid):
+  MFANKYYVADVLNQVLRSNYSNRGEPLWMAILDTYFPCDPRLARPLLAWLLAREPDELDK
+  LEQGTNAYDLPQPVPSLDRARVLPCLTFRCSIHETTESRRPILQTLAEAELVVRLRYRAL
+  HSLRSRMTWPIAYDLGLDMSMSYRVGVYVHFCSRRRVGIRPLEPRPFAWTLQLARRLTML
+  GGENLKSRNRLVPDIGSNID
+
+In plain English: 1 stretches of this DNA read as complete protein recipes. The longest is 200 amino acids, starting at base 61 on the + strand.
+Written: out/orfs.json
+
+### STEP 4: find the single-cut enzymes that can open the vector
+$ python -m synthlab.digest examples/demo_vector.gb --enzymes EcoRI,BamHI,HindIII --out out/digest.json
+
+========================================================================
+synth cloning :: digest
+synth / cloning - design specifications only.
+Made-up inputs, research and not treatment. Not for use with real patients.
+No ordering or synthesis path. Text output only, no network.
+========================================================================
+enzyme   cuts  positions_1_based
+-------  ----  -----------------
+BamHI    1     1281             
+EcoRI    1     1155             
+HindIII  1     1487             
+
+Fragment lengths (bp): 1559, 206, 126
+
+In plain English: these enzymes cut the circular molecule in 3 places, leaving 3 pieces. Cutting exactly once: BamHI, EcoRI, HindIII. Those are the useful places to open the molecule and drop something in.
+Written: out/digest.json
+
+### STEP 5: design the primer pair, with homology tails for the join
+$ python -m synthlab.primers examples/demo_insert.fasta --vector examples/demo_vector.gb --enzyme EcoRI --homology 30 --out out/primers.json
+
+========================================================================
+synth cloning :: primers
+synth / cloning - design specifications only.
+Made-up inputs, research and not treatment. Not for use with real patients.
+No ordering or synthesis path. Text output only, no network.
+========================================================================
+primer   total_length  annealing_tm_c  annealing_gc_pct  tail_length
+-------  ------------  --------------  ----------------  -----------
+forward  50            60.04           55.0              30         
+reverse  50            59.96           50.0              30         
+
+forward: 5'-GGATGAGTTATTGGGCGAGGCAAAGGAGTGAATGTCACAGTACTGGGCGG-3'
+reverse: 5'-TCAGGATTCGACGAAGCAGAACACGGAATTTGTCCGCGGTAATTTGTCCA-3'
+
+In plain English: these two short pieces of DNA mark the start and end of the region to copy. The copied piece will be 682 bases long, and each primer carries 30 extra bases matching the vector so the pieces can be joined without any cut-and-paste enzyme.
+Written: out/primers.json
+
+### STEP 6: simulate the copy step and the join step
+$ python -m synthlab.assemble --template examples/demo_insert.fasta --primers out/primers.json --vector examples/demo_vector.gb --enzyme EcoRI --out out/construct.gb
+
+========================================================================
+synth cloning :: assemble
+synth / cloning - design specifications only.
+Made-up inputs, research and not treatment. Not for use with real patients.
+No ordering or synthesis path. Text output only, no network.
+========================================================================
+piece               length_bp
+------------------  ---------
+template (insert)   720      
+pcr product         742      
+opened vector       1891     
+circular construct  2573     
+
+Expected construct length from the arithmetic: 2573 bp
+Observed construct length: 2573 bp
+
+In plain English: the copy step produced the insert with matching ends, and the join step closed it into the vector as one circle. Nothing was ordered or made; this is a simulation on paper.
+Written: out/construct.gb
+
+### STEP 7: emit the construct specification with a plain-English summary
+$ python -m synthlab.spec out/construct.gb --enzymes EcoRI,BamHI,HindIII --min-aa 100 --json-out out/construct_spec.json
+
+========================================================================
+synth cloning :: spec
+synth / cloning - design specifications only.
+Made-up inputs, research and not treatment. Not for use with real patients.
+No ordering or synthesis path. Text output only, no network.
+========================================================================
+CONSTRUCT SPECIFICATION
+
+field                value                                                
+-------------------  -----------------------------------------------------
+construct_id         SYNTH-DEMO-CONSTRUCT                                 
+description          demo construct: made-up insert in made-up vector     
+topology             circular                                             
+length_bp            2573                                                 
+gc_percent           50.4                                                 
+features             1                                                    
+open_reading_frames  3                                                    
+status               design specification only; research and not treatment
+
+FEATURES
+label              type          start  end   strand  length_bp
+-----------------  ------------  -----  ----  ------  ---------
+inserted_fragment  misc_feature  1892   2573  +       682      
+
+OPEN READING FRAMES
+strand  frame  start  end   length_nt  length_aa
+------  -----  -----  ----  ---------  ---------
++       1      1930   2532  603        200      
++       1      1138   1590  453        150      
+-       2      1727   2131  405        134      
+
+RESTRICTION SITES
+enzyme   cuts  positions_1_based
+-------  ----  -----------------
+BamHI    1     127              
+EcoRI    0     (none)           
+HindIII  1     333              
+
+TEMPLATE SEQUENCE (5' to 3')
+AATTCCGTGTTCTGCTTCGTCGAATCCTGAATGATGGTCAGGGTAAGATTACTAGATAAA
+TCAGAAATCCTAGATCACAAATCTCGCAAATGTATAAACGCGAACGTGGAGGCCTAGGGC
+TCAGCGGATCCCGCACGCGGACTCACCCGTAGCGGGCTAATTGATTAAAATTTACCGTAT
+TGTCTGTCAGGGGGAAATGTAGGAGCATTTCCAATTCCAAAAGCACTTTTCCTCCAACCT
+CGTCACGTCTAAGGTTCTGGAATAAATGTTATGATGTGCCGCCGAAGGTGAAAAAACCTC
+ATGCACCTCCTCAGTGCATTTTGATGACTAGAAGCTTGCGTTGTTCGCCGCAAAGATTAC
+CATGCTCACATAGGAAATCTATGAGTGAGCTCCCCTCTAATCGCTGTGTTCTGCTAAGCC
+CCTTGTACTTGTACTGCGTATAATAGGCACTCGTCAAGTCGTTTTACATCGGGGATAGCC
+ACAAGGAATCAGCCACACAATAATCAGCTTCGCGATGTTGCGGCTCAAGCATTAGATTAT
+CGCATGCTAAACTCATTGGTTCTGTAGCCATTAGATGGCAGTTCCCCTACCAACGGTTAA
+CGTGACCCAGATGATGATATGGGCCAACTCCGGAAGACTCGGGCTGACCACACTAAGAGA
+TAAATGGTTCACAATGTGCATGATGTTACACCCGCAAGAGCTTCAGGACTACGAGGAAAC
+CGAGTAGGGATAAGCCATATTTCTACGACCGGGTTTCCTGGCAAGTGGTGCAAATAGAGT
+GTAGGTGAATGCGACACCTAGTTGCTACGACTTTAGATAAAAAGGGCACTGATTGCTTGG
+GCACCTATCCTAGAGACAGTGCTAATACAGGAAGTCGATCTCTAGTATAACGCCAAGAGG
+CTGCTAATCAACACGTACTTGAGTGACATGTCCTTCCTATCCCAATAAGAAGTCACGTCC
+CGCTAGATCCATTCCCAGTTTAAGACGTGATGCCGGGATTGCGCTGAAGTGGGCGGAGGT
+TAGGGTGGAGAAGAGGGTCGATACTTACAGCAGAATATTTGGAACCTGATTAGAATTTGG
+CTATTACAAAGTACCTGTCCCCTAGGAATCGCTCTTGCTCGACACCGTGCGCAACCTATG
+ATATCGGAGCCCACCTCCGCTCCCGTCTTCGCGACTTATTATGACTTAAACAAGAGCGGT
+ATCACCATAATATATGAACATGTAAAGTGCACCTCAGCCTGCTCAGGGATTCCTTGGCTC
+GAGTCGATCGGCCTTCAGCGACTTCTAGCGAGGTTATGGTCTTCGCGCGTTGCAGCAGGC
+CTCGGCCTAGGGCGCCTCTCGCGCAACCGAAGGCAGTTAATTGAATGGGAGAGCCTTAAA
+AGTGAGTCTCTACTAATCGCCCGTTTAATTGCAGTTTCCTTGTCCAACAGGAAAATTGTT
+TGGATCTTTCAGGGGCACGAATGGGGTCTCTGCCAGATTGGGATGTACATGGCATGTCAT
+CTGCAAAAAGGCAAGCGAATCGGGTCGCACGACGATAAGCCAAGATCTCTCGTATACGCC
+AGGCATCGGAGGCATAAGTCGAGGCGCTAATAGTGCGGCCTATGTGCGTCTAAGCCGGCC
+GGGCTCTCTACTCCCAAGGAATACAGTAGCGACGCCCTAGTTGACAATCTAATCCTAGTC
+GTGTCTCGGCTGCGGTGCGCATGGAGAACTCGCCTAAGGAAGTAGTTTACCCTGCATTAT
+TTTGGCGCTGGCCCGCTTCCTGCCTACAGGAGATTTGAATTGGCAGCCTACCCGCCGCCT
+GTTGCGGTAAGTCTGGATAGGGCGTAAGAGGAACCGATCCCCAGCAAATAGTCGGACAAG
+CGGATGAGTTATTGGGCGAGGCAAAGGAGTGAATGTCACAGTACTGGGCGGCGAAATACC
+CTTTGCTAAATGTTTGCCAATAAGTACTACGTAGCGGATGTGCTAAACCAGGTTCTACGC
+TCCAACTACAGCAATCGAGGAGAGCCGCTGTGGATGGCAATACTGGACACGTATTTTCCG
+TGCGACCCTCGGCTCGCACGTCCTCTGCTTGCTTGGCTGCTGGCGAGAGAACCGGACGAG
+CTAGACAAACTAGAACAGGGCACCAACGCATATGACCTTCCGCAGCCGGTTCCTTCCCTA
+GACCGAGCACGAGTGCTGCCTTGCTTAACTTTCAGATGTTCAATACATGAAACTACTGAA
+TCACGTCGTCCCATACTCCAAACACTCGCAGAGGCCGAGCTCGTTGTACGTTTGCGCTAT
+CGCGCGCTGCACTCTTTACGTAGTCGTATGACTTGGCCCATTGCGTACGATCTCGGCTTG
+GATATGTCAATGTCTTACCGGGTCGGGGTCTACGTGCATTTCTGTAGTCGCCGGCGCGTG
+GGTATTCGTCCTTTAGAGCCACGTCCGTTCGCTTGGACACTCCAGTTAGCACGACGACTC
+ACCATGCTGGGAGGTGAAAATCTCAAGTCGCGAAACCGTCTCGTCCCGGACATTGGGTCA
+AACATCGATTAACAAATTGGTCGCGTGGCCTTATGGACAAATTACCGCGGACA
+
+IN PLAIN ENGLISH
+This is a design on paper for a circular piece of DNA 2573 letters long. It carries a recipe for one protein 200 amino acids long. 1 parts of it are labelled with what they do.
+Nothing here has been made, ordered, or given to anyone. The inputs are made up, the work is for research, and it is not treatment.
+
+# synth / cloning - design specifications only.
+# Made-up inputs, research and not treatment. Not for use with real patients.
+# No ordering or synthesis path. Text output only, no network.
+Written: out/construct_spec.json
+
+### DONE: 7 of 7 steps finished. Files are under cloning/out/.
+### Nothing was ordered, made, or sent anywhere.
