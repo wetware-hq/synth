@@ -1,6 +1,62 @@
 # synth card
 
 ```
+ENV: molecular cloning bench, terminal only; two stations
+  cloning/  seven python commands over a plain-text sequence record (Biopython, primer3-py, pydna)
+  src/      synth binary: codon-opt CDS for synthesis, hands DesignSpec to bloc
+SCOPE: design specifications only, made-up inputs, research not treatment; NO ordering/synthesis path
+```
+
+## invariants (never break)
+
+```
+text in, text out; no GUI, no interactive editor
+no network at run time; no on-disk cache; codon tables compiled in
+deterministic: pinned deps, fixed record dates, sorted JSON keys, checked-in examples
+  two demo.sh runs byte-identical and equal to demo_transcript.txt
+no jurisdiction/site value in core code -> site-profile data file, cited
+every command prints the scope banner in its header
+```
+
+## cloning station
+
+```
+PYTHONPATH=cloning; run from cloning/; venv at cloning/.venv
+inspect  record.gb|fa                              -> length, topology, features
+annotate record --features TSV --out gb            -> annotated GenBank
+orfs     record --min-aa N --out json              -> frames + translations
+digest   record --enzymes A,B,C --out json         -> cuts + fragments
+primers  insert --vector gb --enzyme E --homology N -> primer pair (+Gibson tails)
+assemble --template --primers --vector --enzyme    -> simulated PCR joined into vector
+spec     construct.gb --json-out json              -> construct spec + plain-words summary
+tests: cd cloning && python -m pytest   (29, incl. failure paths and two re-run checks)
+```
+
+## adding a command
+
+```
+one file in cloning/synthlab/, one job; wrap a mature library, do not reimplement biology
+argparse + shared header/banner from common.py
+plain-text stdout; optional --out / --json-out (sorted keys, no clock, no random)
+wrong result = error, not a guess: validate inputs, fail loud with the reason
+add tests in cloning/tests/test_commands.py: happy path + each failure path + re-run determinism
+if it is a release gate, implement the SY-GATE-* check id, do not fold it into another command
+```
+
+## gates NOT built
+
+```
+SY-GATE-HAZARD   screen of the sequence before export
+SY-GATE-HUMANREF target vs normal human reference
+SY-GATE-INTEGRITY round-trip/frame/reproducibility as release condition
+SY-GATE-IDENTITY two-identifier match person+specimen; signed sequencing/tissue-type artefacts
+SY-GATE-SIGNOFF  two named signatures, consent sheet, plain-words summary beside every card
+nothing leaving this bench is signed off until these exist
+```
+
+## codon station
+
+```
 ROLE: codon-opt CDS for synthesis; NOT release authority (bloc owns RELEASE|HOLD|ESCALATE)
 PIPE: SeekFrame(phase=filled,kind=DNA) → synth → SeekFrame + optional DesignSpec → bloc screen → BlocVerdict → enforce_synthesis_gate?
 ```
