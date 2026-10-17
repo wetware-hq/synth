@@ -60,6 +60,10 @@ bash demo.sh
 
 `demo.sh` walks the whole cloning station from the checked-in example inputs and exits 0. Tests run from the `cloning` directory with `python -m pytest`; 29 cover every command and its failure paths. The codon station builds with `cargo build --release` and is tested with `cargo test` and `cargo clippy --all-targets --all-features -- -D warnings`.
 
+## Bar
+
+`cargo test`, the cloning suite (29), and `demo.sh` exiting 0 are synth's bar (`cargo clippy -D warnings` too, for merges). What a green covers and what it does not — above all that the `SY-GATE-*` release gates are unbuilt, so a green clears nothing for release — is [BAR.md](BAR.md).
+
 ## Codon station reference
 
 ### Input
