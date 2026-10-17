@@ -169,13 +169,26 @@ enforce_synthesis_gate(&verdict)?;
 ```
 
 Contributors run `cargo test` and `cargo clippy --all-targets --all-features -- -D warnings` before merging changes.
+## References
 
-### References
+Entries are tied to the one claim in this README that rests on them; nothing is listed for adjacency. Peer-reviewed primary literature first, then data sources and tool repositories at a different weight, then what the bench claims with no peer-reviewed support. Every peer-reviewed entry carries a DOI and PMID; the data sources and tool repositories are stable links, not evidence, and none of them licenses a gate.
 
-Codon usage in this crate is taken from the FDA DNA HIVE [CoCoPUTs and HIVE-CUTs](https://dnahive.fda.gov/dna.cgi?cmd=cuts_main) database. The vendored genomic RefSeq snapshots use NCBI taxonomy identifiers 511145 (*Escherichia coli* K-12 substr. MG1655), 4932 (*Saccharomyces cerevisiae*), and 9606 (*Homo sapiens*), retrieved on 2026-10-11, as described under `data/cocoputs/`.
+### Peer-reviewed
 
-Alexaki A, Kames J, Holcomb DD, Athey J, Santana-Quintero LV, Lam PVN, Hamasaki-Katagiri N, Osipova E, Simonyan V, Bar H, Komar AA, Kimchi-Sarfaty C. Codon and Codon-Pair Usage Tables (CoCoPUTs): facilitating genetic variation analyses and recombinant gene design. *Journal of Molecular Biology*. 2019. [https://doi.org/10.1016/j.jmb.2019.04.021](https://doi.org/10.1016/j.jmb.2019.04.021)
+- **Alexaki, A. et al.** Codon and Codon-Pair Usage Tables (CoCoPUTs): facilitating genetic variation analyses and recombinant gene design. *J. Mol. Biol.* 431, 2434–2441 (2019). DOI: 10.1016/j.jmb.2019.04.021 (PMID: 31029701). — The codon station's optimiser: the synonymous-codon frequencies it ranks by are the CoCoPUTs genomic usage counts vendored under `data/cocoputs/`.
+- **Cock, P. J. A. et al.** Biopython: freely available Python tools for computational molecular biology and bioinformatics. *Bioinformatics* 25, 1422–1423 (2009). DOI: 10.1093/bioinformatics/btp163 (PMID: 19304878). — The cloning station's `inspect`, `annotate`, `orfs`, `digest` and `spec` commands: "the biology is Biopython".
+- **Untergasser, A. et al.** Primer3—new capabilities and interfaces. *Nucleic Acids Res.* 40, e115 (2012). DOI: 10.1093/nar/gks596 (PMID: 22730293). — The `primers` command: primer pairs come from primer3 (primer3-py).
+- **Pereira, F. et al.** Pydna: a simulation and documentation tool for DNA assembly strategies using python. *BMC Bioinformatics* 16, 142 (2015). DOI: 10.1186/s12859-015-0544-x (PMID: 25933606). — The `assemble` command: the simulated PCR product joined into the vector is pydna's assembly simulation.
 
-Protein translation follows the NCBI standard genetic code (translation table 1), as documented in [The Genetic Codes](https://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi?mode=c) at NCBI.
+### Data sources and tool repositories (not peer-reviewed)
 
-Seek frame documents conform to the [Seek frame schema](https://github.com/wetware-hq/seek/blob/main/schema/frame.schema.json). Bloc handoff and screening use the [bloc design_spec schema](https://github.com/wetware-hq/bloc/blob/main/schemas/design_spec.schema.json) and the [bloc verdict schema](https://github.com/wetware-hq/bloc/blob/main/schemas/verdict.schema.json).
+These are provenance pointers and format definitions, not citations and not evidence; none of them clears the unbuilt `SY-GATE-*` release gates.
+
+- NCBI standard genetic code, translation table 1 — [The Genetic Codes](https://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi?mode=c). Translation in every station follows this table.
+- CoCoPUTs / HIVE-CUTs database — [DNA HIVE](https://dnahive.fda.gov/dna.cgi?cmd=cuts_main), taxids 511145, 4932 and 9606, retrieved 2026-10-11. The vendored genomic snapshots the codon tables are compiled from; the peer-reviewed description is the Alexaki entry above.
+- [Edinburgh Genome Foundry codon-usage-tables](https://github.com/Edinburgh-Genome-Foundry/codon-usage-tables) — the documented Kazusa-derived fallback used only if CoCoPUTs is unavailable at regeneration time; not the vendored data.
+- Document formats the bench reads and writes: [Seek frame schema](https://github.com/wetware-hq/seek/blob/main/schema/frame.schema.json), [bloc design_spec schema](https://github.com/wetware-hq/bloc/blob/main/schemas/design_spec.schema.json), [bloc verdict schema](https://github.com/wetware-hq/bloc/blob/main/schemas/verdict.schema.json).
+
+### Unsupported claims (no peer-reviewed support)
+
+- Nothing leaving this bench is validated as fit for synthesis or for anything else. The `SY-GATE-*` release gates are unbuilt, no experimental result backs any optimised or assembled sequence, and there is no peer-reviewed evidence that a sequence produced here behaves as designed; the GC-banding and Type IIS avoidance are best-effort heuristics, not validated outcomes.
